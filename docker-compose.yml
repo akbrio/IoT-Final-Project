@@ -1,0 +1,18 @@
+services:
+  dashboard:
+    build: .
+    container_name: iot-dashboard
+    restart: unless-stopped
+    # Reads MQTT_BROKER, credentials, topics etc. from the .env file.
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /data/sensors.db
+    volumes:
+      - sensor-data:/data
+    ports:
+      # Host 8000 -> container 8000. Visit http://<server-ip>:8000
+      - "8000:8000"
+
+volumes:
+  sensor-data:

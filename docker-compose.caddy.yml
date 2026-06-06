@@ -1,0 +1,31 @@
+# Optional: adds a Caddy reverse proxy in front of the dashboard so you get
+# automatic HTTPS (free Let's Encrypt cert) on https://akbar.serveblog.net.
+#
+# Run WITH this override:
+#   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+#
+# Requirements:
+#   - akbar.serveblog.net must point (A record) to this server's public IP
+#   - ports 80 and 443 open (you already have these)
+#
+# With Caddy in front you can drop the "8000:8000" port mapping from the main
+# compose file if you don't want the app reachable directly on :8000.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: iot-caddy
+    restart: unless-stopped
+    depends_on:
+      - dashboard
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  caddy-data:
+  caddy-config:

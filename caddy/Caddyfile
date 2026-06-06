@@ -1,0 +1,8 @@
+# Automatic HTTPS for the dashboard.
+# Caddy fetches and renews a Let's Encrypt certificate for this domain on its
+# own. WebSockets (/ws) are proxied transparently — no extra config needed.
+
+akbar.serveblog.net {
+    encode zstd gzip
+    reverse_proxy dashboard:8000
+}

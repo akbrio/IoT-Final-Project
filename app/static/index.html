@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GENSET · Sensor Telemetry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo-mark"></span>
+      <div class="brand-text">
+        <h1>GENSET TELEMETRY</h1>
+        <p>Generator sensor monitoring · INA219 + MPU6050 · Wemos D1 mini</p>
+      </div>
+    </div>
+
+    <div class="topbar-right">
+      <div class="window-select" id="window-select">
+        <button data-min="5" class="active">5m</button>
+        <button data-min="30">30m</button>
+        <button data-min="60">1h</button>
+        <button data-min="720">12h</button>
+        <button data-min="1440">1d</button>
+        <button data-min="14400">10d</button>
+      </div>
+      <div class="status" id="status">
+        <span class="dot"></span><span class="status-text">CONNECTING</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="grid" class="grid">
+    <!-- sensor panels injected by app.js -->
+    <div class="loading">Initialising telemetry…</div>
+  </main>
+
+  <footer class="footer">
+    <span id="broker-info">broker —</span>
+    <span id="last-update">no data yet</span>
+  </footer>
+
+  <!-- Charting library (loaded from CDN at runtime) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

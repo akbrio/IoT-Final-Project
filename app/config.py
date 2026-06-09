@@ -5,18 +5,18 @@ Everything reads from environment variables so you never have to edit code to
 change the broker or credentials. The SENSORS table below is the single source
 of truth for which values the dashboard tracks and where they come from.
 
-IMPORTANT — this matches your Wemos firmware exactly:
-Your firmware publishes ONE combined JSON message to ONE topic ("akbar"):
+TOPIC LAYOUT — one topic per sensor, each carrying a single plain number:
+    gen/voltage     ->  "12.345"
+    gen/current     ->  "250.500"
+    gen/power       ->  "3.092"
+    gen/vibration   ->  "9.811"
 
-    {"volatge":..., "cuurent":..., "power":..., "accel":{...}, "vibration":...}
+The "gen" prefix is set by MQTT_TOPIC_PREFIX (default "gen"). Change it in one
+place and the dashboard re-subscribes accordingly — just keep the firmware's
+topics matching.
 
-So each sensor below points at the same topic and names the JSON `field` to
-read from that message. The `field` values MUST match the JSON keys your
-firmware publishes — if you rename a key in the firmware, rename it here too.
-
-A `field` may use a dotted path for nested JSON, e.g. "accel.x".
-If `field` is None, the whole payload is treated as a single number
-(the simpler "one value per topic" style).
+`field = None` means "the whole payload IS the number" (as above). If you ever
+switch a topic back to JSON, set `field` to the key to read (dotted paths OK).
 """
 import os
 
@@ -28,50 +28,48 @@ def _env(key: str, default: str) -> str:
 # ---------------------------------------------------------------------------
 # MQTT broker
 # ---------------------------------------------------------------------------
-MQTT_BROKER = _env("MQTT_BROKER", "16.16.253.191")
-MQTT_PORT = int(_env("MQTT_PORT", "1883"))
-MQTT_USERNAME = _env("MQTT_USERNAME", "akbar")
-MQTT_PASSWORD = _env("MQTT_PASSWORD", "akbar2026")
-MQTT_KEEPALIVE = int(_env("MQTT_KEEPALIVE", "60"))
-MQTT_CLIENT_ID = _env("MQTT_CLIENT_ID", "iot-dashboard-backend")
+MQTT_BROKER = os.environ["MQTT_BROKER"]
+MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
 
-# The single topic your Wemos publishes to.
-MQTT_DATA_TOPIC = _env("MQTT_DATA_TOPIC", "akbar")
+MQTT_USERNAME = os.environ["MQTT_USERNAME"]
+MQTT_PASSWORD = os.environ["MQTT_PASSWORD"]
+
+MQTT_KEEPALIVE = int(os.environ.get("MQTT_KEEPALIVE", "60"))
+MQTT_CLIENT_ID = os.environ.get(
+    "MQTT_CLIENT_ID",
+    "iot-dashboard-backend"
+)
+
+# Topic prefix. With "gen", topics are gen/voltage, gen/current, etc.
+MQTT_TOPIC_PREFIX = _env("MQTT_TOPIC_PREFIX", "gen")
 
 # ---------------------------------------------------------------------------
 # Sensors -> key : { topic, field, label, unit, color }
-#   topic : MQTT topic the value arrives on
-#   field : JSON key within the message (dotted path allowed; None = raw number)
+#   topic : MQTT topic this value arrives on
+#   field : JSON key to read (dotted path allowed); None = whole payload is the number
 # ---------------------------------------------------------------------------
 SENSORS = {
     "voltage": {
-        "topic": MQTT_DATA_TOPIC, "field": "voltage",
+        "topic": f"{MQTT_TOPIC_PREFIX}/voltage", "field": None,
         "label": "Voltage", "unit": "V", "color": "#ffb000",
     },
     "current": {
-        "topic": MQTT_DATA_TOPIC, "field": "current",
+        "topic": f"{MQTT_TOPIC_PREFIX}/current", "field": None,
         "label": "Current", "unit": "mA", "color": "#22d3ee",
     },
     "power": {
-        "topic": MQTT_DATA_TOPIC, "field": "power",
+        "topic": f"{MQTT_TOPIC_PREFIX}/power", "field": None,
         "label": "Power", "unit": "W", "color": "#4ade80",
     },
     "vibration": {
-        "topic": MQTT_DATA_TOPIC, "field": "vibration",
+        "topic": f"{MQTT_TOPIC_PREFIX}/vibration", "field": None,
         # Firmware sends sqrt(ax^2+ay^2+az^2) -> acceleration magnitude in m/s^2
-        # (it includes gravity, so it idles near 9.8). See note in the chat.
+        # (includes gravity, so it idles near 9.8 at rest).
         "label": "Vibration", "unit": "m/s²", "color": "#f472b6",
     },
-    # --- Optional: uncomment to also chart the raw accelerometer axes ---
-    # "accel_x": {"topic": MQTT_DATA_TOPIC, "field": "accel.x",
-    #             "label": "Accel X", "unit": "m/s²", "color": "#a78bfa"},
-    # "accel_y": {"topic": MQTT_DATA_TOPIC, "field": "accel.y",
-    #             "label": "Accel Y", "unit": "m/s²", "color": "#60a5fa"},
-    # "accel_z": {"topic": MQTT_DATA_TOPIC, "field": "accel.z",
-    #             "label": "Accel Z", "unit": "m/s²", "color": "#34d399"},
 }
 
-# topic -> [sensor keys on that topic]  (so we subscribe once per distinct topic)
+# topic -> [sensor keys on that topic]  (we subscribe once per distinct topic)
 TOPIC_SENSORS: dict[str, list[str]] = {}
 for _key, _meta in SENSORS.items():
     TOPIC_SENSORS.setdefault(_meta["topic"], []).append(_key)

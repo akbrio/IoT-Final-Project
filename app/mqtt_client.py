@@ -2,13 +2,14 @@
 MQTT subscriber.
 
 Connects to your Mosquitto broker, subscribes once to each distinct topic in
-config.TOPIC_SENSORS, and for every message extracts each sensor's value from
-the (possibly combined) JSON payload, then hands each reading to a callback.
+config.TOPIC_SENSORS, and for every message extracts the sensor value(s), then
+hands each reading to a callback.
 
-Matches your Wemos firmware: one JSON message on topic "akbar" carrying all the
-values. For each sensor on a topic we read its configured `field` from the JSON
-(supports dotted paths like "accel.x"). If `field` is None we treat the whole
-payload as a single number instead.
+Matches your Wemos firmware: four separate topics (gen/voltage, gen/current,
+gen/power, gen/vibration), each carrying a single plain number. Those sensors
+use `field = None`, so the whole payload is parsed as the number. (If a topic
+instead carries JSON, set `field` to the key to read; dotted paths like
+"accel.x" are supported.)
 
 Design notes:
 - connect_async + loop_start => the web server starts instantly even if the

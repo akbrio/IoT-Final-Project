@@ -1,11 +1,14 @@
 /*
  * GENSET sensor node — Wemos D1 mini
  * INA219 (voltage/current/power) + MPU6050 (acceleration/vibration)
- * Publishes one combined JSON message to MQTT topic "akbar" once per second.
  *
- * Payload shape (matches the dashboard's app/config.py):
- *   {"voltage":12.345,"current":250.500,"power":3.092,
- *    "accel":{"x":..,"y":..,"z":..},"vibration":9.811}
+ * Publishes one plain number to each of FOUR topics, once per second:
+ *     gen/voltage     e.g. 12.345    (V)
+ *     gen/current     e.g. 250.500   (mA)
+ *     gen/power       e.g. 3.092     (W)   power = V * I
+ *     gen/vibration   e.g. 9.811     (m/s^2, acceleration magnitude)
+ *
+ * The dashboard subscribes to these same four topics (see app/config.py).
  *
  * Libraries (install via Library Manager):
  *   - PubSubClient (Nick O'Leary)
@@ -22,12 +25,18 @@
 // ----------------------------- Configuration -----------------------------
 const char* ssid           = "AAR";
 const char* password        = "";                    // empty = open network
-const char* mqtt_server     = "akbar.serveblog.net"; // must resolve to your broker IP
+const char* mqtt_server     = "16.16.143.50";        // your broker IP
 const int   mqtt_port       = 1883;
 const char* mqtt_username   = "akbar";
 const char* mqtt_password   = "akbar2026";
-const char* mqtt_topic      = "akbar";
 const char* mqtt_client_id  = "wemos-genset";        // make this unique per device
+
+// One topic per measurement. Change the "gen" prefix here AND in the
+// dashboard's .env (MQTT_TOPIC_PREFIX) to keep both sides matching.
+const char* topic_voltage   = "gen/voltage";
+const char* topic_current   = "gen/current";
+const char* topic_power     = "gen/power";
+const char* topic_vibration = "gen/vibration";
 
 const unsigned long PUBLISH_INTERVAL_MS = 1000;      // publish rate
 
@@ -39,6 +48,19 @@ PubSubClient client(espClient);
 
 bool mpuOk = false;
 unsigned long lastPublish = 0;
+
+// ----------------------------- Helpers ------------------------------------
+// Publish a float as a plain string (e.g. 12.345). Returns false on failure.
+bool publishFloat(const char* topic, float value) {
+  char buf[24];
+  snprintf(buf, sizeof(buf), "%.3f", value);
+  bool ok = client.publish(topic, buf);
+  Serial.print(topic);
+  Serial.print(" = ");
+  Serial.print(buf);
+  Serial.println(ok ? "" : "  (PUBLISH FAILED)");
+  return ok;
+}
 
 // ----------------------------- WiFi ---------------------------------------
 void connectWiFi() {
@@ -73,7 +95,7 @@ void connectMQTT() {
       Serial.println("connected");
     } else {
       Serial.print("failed, rc=");
-      Serial.print(client.state());   // negative codes = network, positive = protocol
+      Serial.print(client.state());   // negative = network, positive = protocol
       Serial.println(" — retrying in 2s");
       delay(2000);
       if (WiFi.status() != WL_CONNECTED) return;  // bail out to fix WiFi first
@@ -95,13 +117,13 @@ void setup() {
   }
   mpuOk = mpu.begin();
   if (!mpuOk) {
-    Serial.println("MPU6050 not found — vibration/accel will report 0");
+    Serial.println("MPU6050 not found — vibration will report 0");
   }
 
   connectWiFi();
 
   client.setServer(mqtt_server, mqtt_port);
-  client.setBufferSize(512);   // headroom so the JSON is never dropped
+  client.setBufferSize(256);
   client.setKeepAlive(30);
   connectMQTT();
 }
@@ -121,38 +143,26 @@ void loop() {
   // ----- Read INA219 -----
   float busV       = ina219.getBusVoltage_V();        // Volts
   float current_mA = ina219.getCurrent_mA();          // mA
-  float power_W    = ina219.getPower_mW() / 1000.0;    // W (measured by the chip)
+  float power_W    = busV * current_mA / 1000.0;      // P = V * I  (V * mA / 1000 = W)
 
   // ----- Read MPU6050 -----
-  float ax = 0, ay = 0, az = 0, vibration = 0;
+  float vibration = 0;
   if (mpuOk) {
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
-    ax = a.acceleration.x;
-    ay = a.acceleration.y;
-    az = a.acceleration.z;
+    float ax = a.acceleration.x;
+    float ay = a.acceleration.y;
+    float az = a.acceleration.z;
     // Magnitude of the acceleration vector (m/s^2).
-    // NOTE: this includes gravity, so it idles around 9.81 m/s^2 at rest.
+    // NOTE: includes gravity, so it idles around 9.81 m/s^2 at rest.
     // For "vibration only", use: fabs(vibration - 9.81)
     vibration = sqrt(ax * ax + ay * ay + az * az);
   }
 
-  // ----- Build JSON -----
-  char payload[256];
-  int n = snprintf(payload, sizeof(payload),
-    "{\"voltage\":%.3f,\"current\":%.3f,\"power\":%.3f,"
-    "\"accel\":{\"x\":%.3f,\"y\":%.3f,\"z\":%.3f},\"vibration\":%.3f}",
-    busV, current_mA, power_W, ax, ay, az, vibration);
-
-  if (n < 0 || n >= (int)sizeof(payload)) {
-    Serial.println("Payload truncated — skipping publish");
-    return;
-  }
-
-  Serial.print("Payload: ");
-  Serial.println(payload);
-
-  if (!client.publish(mqtt_topic, payload)) {
-    Serial.println("Publish failed (check buffer size / connection)");
-  }
+  // ----- Publish each value to its own topic -----
+  Serial.println("---- publishing ----");
+  publishFloat(topic_voltage,   busV);
+  publishFloat(topic_current,   current_mA);
+  publishFloat(topic_power,     power_W);
+  publishFloat(topic_vibration, vibration);
 }

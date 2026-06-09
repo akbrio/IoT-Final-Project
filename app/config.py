@@ -51,21 +51,21 @@ MQTT_TOPIC_PREFIX = _env("MQTT_TOPIC_PREFIX", "gen")
 SENSORS = {
     "voltage": {
         "topic": f"{MQTT_TOPIC_PREFIX}/voltage", "field": None,
-        "label": "Voltage", "unit": "V", "color": "#ffb000",
+        "label": "Voltage", "unit": "V", "color": "#ffb454",
     },
     "current": {
         "topic": f"{MQTT_TOPIC_PREFIX}/current", "field": None,
-        "label": "Current", "unit": "mA", "color": "#22d3ee",
+        "label": "Current", "unit": "mA", "color": "#58c4f0",
     },
     "power": {
         "topic": f"{MQTT_TOPIC_PREFIX}/power", "field": None,
-        "label": "Power", "unit": "W", "color": "#4ade80",
+        "label": "Power", "unit": "W", "color": "#3fd99a",
     },
     "vibration": {
         "topic": f"{MQTT_TOPIC_PREFIX}/vibration", "field": None,
         # Firmware sends sqrt(ax^2+ay^2+az^2) -> acceleration magnitude in m/s^2
         # (includes gravity, so it idles near 9.8 at rest).
-        "label": "Vibration", "unit": "m/s²", "color": "#f472b6",
+        "label": "Vibration", "unit": "m/s²", "color": "#b08bf0",
     },
 }
 

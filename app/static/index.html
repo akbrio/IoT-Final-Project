@@ -3,53 +3,58 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GENSET · Sensor Telemetry</title>
+  <title>Generator Monitor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet"
   />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <div class="scanlines" aria-hidden="true"></div>
-
-  <header class="topbar">
-    <div class="brand">
-      <span class="logo-mark"></span>
-      <div class="brand-text">
-        <h1>GENSET TELEMETRY</h1>
-        <p>Generator sensor monitoring · INA219 + MPU6050 · Wemos D1 mini</p>
+  <div class="app">
+    <header class="masthead">
+      <div class="identity">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2 21 7v10l-9 5-9-5V7z" />
+            <path d="M13 8l-4 5h3l-1 4 4-5h-3z" fill="currentColor" stroke="none" />
+          </svg>
+        </span>
+        <div class="identity-text">
+          <h1>Generator Monitor</h1>
+          <p>Live telemetry — INA219 &amp; MPU6050</p>
+        </div>
       </div>
-    </div>
 
-    <div class="topbar-right">
-      <div class="window-select" id="window-select">
-        <button data-min="5" class="active">5m</button>
-        <button data-min="30">30m</button>
-        <button data-min="60">1h</button>
-        <button data-min="720">12h</button>
-        <button data-min="1440">1d</button>
-        <button data-min="14400">10d</button>
+      <div class="controls">
+        <div class="segmented" id="window-select" role="group" aria-label="Time window">
+          <button type="button" data-min="5" class="is-active">5m</button>
+          <button type="button" data-min="30">30m</button>
+          <button type="button" data-min="60">1h</button>
+          <button type="button" data-min="720">12h</button>
+          <button type="button" data-min="1440">1d</button>
+          <button type="button" data-min="14400">10d</button>
+        </div>
+        <div class="link-state" id="status" data-state="connecting">
+          <span class="beacon" aria-hidden="true"></span>
+          <span class="link-label">Connecting</span>
+        </div>
       </div>
-      <div class="status" id="status">
-        <span class="dot"></span><span class="status-text">CONNECTING</span>
-      </div>
-    </div>
-  </header>
+    </header>
 
-  <main id="grid" class="grid">
-    <!-- sensor panels injected by app.js -->
-    <div class="loading">Initialising telemetry…</div>
-  </main>
+    <main id="grid" class="board">
+      <p class="placeholder">Starting telemetry…</p>
+    </main>
 
-  <footer class="footer">
-    <span id="broker-info">broker —</span>
-    <span id="last-update">no data yet</span>
-  </footer>
+    <footer class="ledger">
+      <span id="topic-list" class="topics">—</span>
+      <span id="last-update" class="updated">Awaiting data</span>
+    </footer>
+  </div>
 
-  <!-- Charting library (loaded from CDN at runtime) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="/static/app.js"></script>
 </body>

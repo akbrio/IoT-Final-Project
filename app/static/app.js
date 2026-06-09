@@ -1,22 +1,16 @@
 /* ------------------------------------------------------------------ *
- * GENSET Telemetry dashboard
- * - Builds one panel + live chart per sensor (from /api/sensors)
- * - Loads history for the selected time window
- * - Streams live readings over a WebSocket and appends them to the charts
+ * Generator Monitor — live dashboard
+ * Builds one cell + chart per sensor (from /api/sensors), loads history
+ * for the selected window, and streams live readings over a WebSocket.
  * ------------------------------------------------------------------ */
 
 const state = {
-  sensors: [],          // metadata from the API
-  charts: {},           // key -> Chart instance
-  data: {},             // key -> [{x: ms, y: value}, ...]
-  stats: {},            // key -> {min, max}
-  windowMin: 5,         // currently selected window in minutes
-  ws: null,
+  sensors: [], charts: {}, data: {}, stats: {},
+  windowMin: 5, ws: null,
 };
 
-/* ---------- number formatting ---------- */
 function fmt(v) {
-  if (v === null || v === undefined || Number.isNaN(v)) return "--";
+  if (v === null || v === undefined || Number.isNaN(v)) return "—";
   const abs = Math.abs(v);
   if (abs >= 1000) return v.toFixed(0);
   if (abs >= 100)  return v.toFixed(1);
@@ -25,119 +19,117 @@ function fmt(v) {
 
 function fmtTime(ms) {
   const d = new Date(ms);
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  const p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
-/* ---------- build a chart ---------- */
+/* ---------- chart ---------- */
 function makeChart(canvas, color) {
   const ctx = canvas.getContext("2d");
-  const grad = ctx.createLinearGradient(0, 0, 0, 180);
-  grad.addColorStop(0, color + "55");
+  const grad = ctx.createLinearGradient(0, 0, 0, 128);
+  grad.addColorStop(0, color + "33");
   grad.addColorStop(1, color + "00");
 
   return new Chart(ctx, {
     type: "line",
-    data: {
-      datasets: [{
-        data: [],
-        borderColor: color,
-        backgroundColor: grad,
-        borderWidth: 1.6,
-        pointRadius: 0,
-        tension: 0.25,
-        fill: true,
-      }],
-    },
+    data: { datasets: [{
+      data: [],
+      borderColor: color,
+      backgroundColor: grad,
+      borderWidth: 1.7,
+      pointRadius: 0,
+      tension: 0.32,
+      fill: true,
+    }]},
     options: {
       responsive: true,
       maintainAspectRatio: false,
       animation: false,
-      parsing: false,            // we feed {x, y} directly
+      parsing: false,
       interaction: { mode: "nearest", intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: "#0a0e0f",
-          borderColor: color,
+          backgroundColor: "#0e1113",
+          borderColor: "#252b30",
           borderWidth: 1,
-          titleColor: "#9fb4b0",
-          bodyColor: "#d7e4e2",
+          padding: 9,
+          titleColor: "#93a0a7",
+          titleFont: { family: "JetBrains Mono", size: 10 },
+          bodyColor: "#eef2f4",
+          bodyFont: { family: "JetBrains Mono", size: 13, weight: "600" },
           displayColors: false,
           callbacks: {
-            title: (items) => fmtTime(items[0].parsed.x),
-            label: (item) => fmt(item.parsed.y),
+            title: (i) => fmtTime(i[0].parsed.x),
+            label: (i) => fmt(i.parsed.y),
           },
         },
       },
       scales: {
         x: {
           type: "linear",
+          border: { display: false },
           ticks: {
-            color: "#42534f",
-            font: { family: "IBM Plex Mono", size: 10 },
-            maxRotation: 0,
-            autoSkip: true,
-            maxTicksLimit: 6,
-            callback: (val) => fmtTime(val),
+            color: "#5d676d",
+            font: { family: "JetBrains Mono", size: 10 },
+            maxRotation: 0, autoSkip: true, maxTicksLimit: 5,
+            callback: (v) => fmtTime(v),
           },
-          grid: { color: "#16211f" },
+          grid: { color: "rgba(255,255,255,0.035)" },
         },
         y: {
+          border: { display: false },
           ticks: {
-            color: "#42534f",
-            font: { family: "IBM Plex Mono", size: 10 },
-            maxTicksLimit: 5,
+            color: "#5d676d",
+            font: { family: "JetBrains Mono", size: 10 },
+            maxTicksLimit: 4,
           },
-          grid: { color: "#16211f" },
+          grid: { color: "rgba(255,255,255,0.035)" },
         },
       },
     },
   });
 }
 
-/* ---------- panels ---------- */
-function buildPanels() {
-  const grid = document.getElementById("grid");
-  grid.innerHTML = "";
+/* ---------- cells ---------- */
+function buildCells() {
+  const board = document.getElementById("grid");
+  board.innerHTML = "";
 
   state.sensors.forEach((s) => {
     state.data[s.key] = [];
     state.stats[s.key] = { min: null, max: null };
 
-    const panel = document.createElement("section");
-    panel.className = "panel";
-    panel.style.setProperty("--accent", s.color);
-    panel.innerHTML = `
-      <div class="panel-head">
-        <span class="panel-title">${s.label}</span>
-        <span class="panel-topic">${s.topic}</span>
+    const cell = document.createElement("article");
+    cell.className = "cell";
+    cell.style.setProperty("--accent", s.color);
+    cell.innerHTML = `
+      <div class="cell-top">
+        <span class="cell-label"><span class="tick"></span>${s.label}</span>
+        <span class="cell-topic">${s.topic}</span>
       </div>
-      <div class="readout">
-        <span class="value" id="val-${s.key}">--</span>
-        <span class="unit">${s.unit}</span>
-        <div class="stats">
-          <div class="stat"><div class="k">MIN</div><div class="v" id="min-${s.key}">--</div></div>
-          <div class="stat"><div class="k">MAX</div><div class="v" id="max-${s.key}">--</div></div>
-        </div>
+      <div class="cell-readout">
+        <span class="cell-value" id="val-${s.key}">—</span>
+        <span class="cell-unit">${s.unit}</span>
       </div>
-      <div class="chart-wrap"><canvas id="chart-${s.key}"></canvas></div>
+      <div class="cell-chart"><canvas id="chart-${s.key}"></canvas></div>
+      <div class="cell-foot">
+        <span><i>Min</i><b id="min-${s.key}">—</b></span>
+        <span><i>Max</i><b id="max-${s.key}">—</b></span>
+      </div>
     `;
-    grid.appendChild(panel);
-
-    const canvas = panel.querySelector(`#chart-${s.key}`);
-    state.charts[s.key] = makeChart(canvas, s.color);
+    board.appendChild(cell);
+    state.charts[s.key] = makeChart(cell.querySelector(`#chart-${s.key}`), s.color);
   });
 }
 
-/* ---------- history load ---------- */
+/* ---------- history ---------- */
 async function loadHistory() {
   await Promise.all(state.sensors.map(async (s) => {
     try {
       const res = await fetch(`/api/history?sensor=${s.key}&minutes=${state.windowMin}`);
       const json = await res.json();
-      const pts = json.points.map((p) => ({ x: p.ts, y: p.value }));
-      state.data[s.key] = pts;
+      state.data[s.key] = json.points.map((p) => ({ x: p.ts, y: p.value }));
       recomputeStats(s.key);
       pushToChart(s.key);
       updateReadout(s.key);
@@ -147,14 +139,11 @@ async function loadHistory() {
   }));
 }
 
-function windowFloor() {
-  return Date.now() - state.windowMin * 60 * 1000;
-}
+function windowFloor() { return Date.now() - state.windowMin * 60 * 1000; }
 
 function trim(key) {
   const floor = windowFloor();
   const arr = state.data[key];
-  // drop points older than the window
   let i = 0;
   while (i < arr.length && arr[i].x < floor) i++;
   if (i > 0) arr.splice(0, i);
@@ -176,63 +165,45 @@ function pushToChart(key) {
 
 function updateReadout(key) {
   const arr = state.data[key];
-  const valEl = document.getElementById(`val-${key}`);
-  const minEl = document.getElementById(`min-${key}`);
-  const maxEl = document.getElementById(`max-${key}`);
-  if (arr.length) valEl.textContent = fmt(arr[arr.length - 1].y);
-  minEl.textContent = fmt(state.stats[key].min);
-  maxEl.textContent = fmt(state.stats[key].max);
+  if (arr.length) document.getElementById(`val-${key}`).textContent = fmt(arr[arr.length - 1].y);
+  document.getElementById(`min-${key}`).textContent = fmt(state.stats[key].min);
+  document.getElementById(`max-${key}`).textContent = fmt(state.stats[key].max);
 }
 
 /* ---------- live reading ---------- */
 function onReading(msg) {
   const { sensor, value, ts } = msg;
   if (!state.data[sensor]) return;
-
   state.data[sensor].push({ x: ts, y: value });
   trim(sensor);
-
   const st = state.stats[sensor];
   st.min = st.min === null ? value : Math.min(st.min, value);
   st.max = st.max === null ? value : Math.max(st.max, value);
-
   pushToChart(sensor);
   updateReadout(sensor);
-
-  document.getElementById("last-update").textContent =
-    "last update " + fmtTime(ts);
+  document.getElementById("last-update").textContent = "Updated " + fmtTime(ts);
 }
 
-/* periodically trim windows so old points scroll off even with no new data */
 setInterval(() => {
   state.sensors.forEach((s) => {
-    trim(s.key);
-    recomputeStats(s.key);
-    pushToChart(s.key);
-    updateReadout(s.key);
+    trim(s.key); recomputeStats(s.key); pushToChart(s.key); updateReadout(s.key);
   });
 }, 5000);
 
-/* ---------- WebSocket ---------- */
-function setStatus(cls, text) {
+/* ---------- connection state ---------- */
+function setStatus(stateName, label) {
   const el = document.getElementById("status");
-  el.className = "status " + cls;
-  el.querySelector(".status-text").textContent = text;
+  el.dataset.state = stateName;
+  el.querySelector(".link-label").textContent = label;
 }
 
 function connectWS() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const ws = new WebSocket(`${proto}://${location.host}/ws`);
   state.ws = ws;
-
-  ws.onopen = () => setStatus("live", "LIVE");
-  ws.onmessage = (e) => {
-    try { onReading(JSON.parse(e.data)); } catch (_) {}
-  };
-  ws.onclose = () => {
-    setStatus("down", "RECONNECTING");
-    setTimeout(connectWS, 2000);   // auto-reconnect
-  };
+  ws.onopen = () => setStatus("live", "Live");
+  ws.onmessage = (e) => { try { onReading(JSON.parse(e.data)); } catch (_) {} };
+  ws.onclose = () => { setStatus("down", "Reconnecting"); setTimeout(connectWS, 2000); };
   ws.onerror = () => ws.close();
 }
 
@@ -242,8 +213,8 @@ function initWindowSelector() {
   box.addEventListener("click", (e) => {
     const btn = e.target.closest("button");
     if (!btn) return;
-    box.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
+    box.querySelectorAll("button").forEach((b) => b.classList.remove("is-active"));
+    btn.classList.add("is-active");
     state.windowMin = parseInt(btn.dataset.min, 10);
     loadHistory();
   });
@@ -256,14 +227,14 @@ async function init() {
     state.sensors = await res.json();
   } catch (e) {
     document.getElementById("grid").innerHTML =
-      '<div class="loading">Failed to load sensor list.</div>';
+      '<p class="placeholder">Could not load the sensor list. Is the server running?</p>';
     return;
   }
 
-  document.getElementById("broker-info").textContent =
-    `${state.sensors.length} sensors · ${state.sensors.map((s) => s.topic).join("  ·  ")}`;
+  document.getElementById("topic-list").textContent =
+    "Topics   " + state.sensors.map((s) => s.topic).join("   ·   ");
 
-  buildPanels();
+  buildCells();
   initWindowSelector();
   await loadHistory();
   connectWS();

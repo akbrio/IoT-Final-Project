@@ -1,4 +1,4 @@
-# Generator Monitor — IoT Sensor Dashboard
+# GENSET Telemetry — IoT Sensor Dashboard
 
 Real-time web dashboard for generator sensor data. It subscribes to your MQTT
 broker, stores readings in SQLite, and streams them live to a browser dashboard

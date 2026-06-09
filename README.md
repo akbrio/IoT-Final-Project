@@ -84,20 +84,18 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 Everything is in **`.env`** (or environment variables). No code editing needed
 to change the broker, credentials, retention, or topics. See `.env.example`.
 
-### Payload format — matches the Wemos firmware
-The firmware publishes ONE combined JSON message to ONE topic (`akbar`):
+### Topics & payload — four separate topics
+The firmware publishes one plain number to each of four topics:
 
-    {"volatge":12.3,"cuurent":250.5,"power":3.1,"accel":{"x":..,"y":..,"z":..},"vibration":9.8}
+| Topic           | Example payload | Unit |
+|-----------------|-----------------|------|
+| `gen/voltage`   | `12.345`        | V    |
+| `gen/current`   | `250.500`       | mA   |
+| `gen/power`     | `3.092`         | W    |
+| `gen/vibration` | `9.811`         | m/s² |
 
-`app/config.py` maps each sensor to the JSON `field` it reads from that message
-(including the firmware's `volatge` / `cuurent` spellings). To add the raw accel
-axes as their own charts, uncomment the `accel_x/y/z` entries in `config.py`.
-If you fix the firmware key spellings, update the matching `field` values too.
-
-### Adding a 5th sensor later
-Add one entry to the `SENSORS` dict in `app/config.py` (key, topic, label, unit,
-color). The API, WebSocket, and dashboard all rebuild themselves from it — no
-other changes required.
+The `gen` prefix is set by `MQTT_TOPIC_PREFIX` in `.env` (and the matching
+topic constants in the firmware). Change it in both places to rename.
 
 ## API reference
 

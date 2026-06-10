@@ -28,12 +28,17 @@ def _env(key: str, default: str) -> str:
 # ---------------------------------------------------------------------------
 # MQTT broker
 # ---------------------------------------------------------------------------
-MQTT_BROKER = _env("MQTT_BROKER", "16.16.143.50")
-MQTT_PORT = int(_env("MQTT_PORT", "1883"))
-MQTT_USERNAME = _env("MQTT_USERNAME", "akbar")
-MQTT_PASSWORD = _env("MQTT_PASSWORD", "akbar2026")
-MQTT_KEEPALIVE = int(_env("MQTT_KEEPALIVE", "60"))
-MQTT_CLIENT_ID = _env("MQTT_CLIENT_ID", "iot-dashboard-backend")
+MQTT_BROKER = os.environ["MQTT_BROKER"]
+MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
+
+MQTT_USERNAME = os.environ["MQTT_USERNAME"]
+MQTT_PASSWORD = os.environ["MQTT_PASSWORD"]
+
+MQTT_KEEPALIVE = int(os.environ.get("MQTT_KEEPALIVE", "60"))
+MQTT_CLIENT_ID = os.environ.get(
+    "MQTT_CLIENT_ID",
+    "iot-dashboard-backend"
+)
 
 # Topic prefix. With "gen", topics are gen/voltage, gen/current, etc.
 MQTT_TOPIC_PREFIX = _env("MQTT_TOPIC_PREFIX", "gen")

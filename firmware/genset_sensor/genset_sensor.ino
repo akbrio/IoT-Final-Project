@@ -25,8 +25,8 @@
 // ----------------------------- Configuration -----------------------------
 const char* ssid           = "AAR";
 const char* password        = "";                    // empty = open network
-const char* mqtt_server     = "16.16.143.50";        // your broker IP
-const int   mqtt_port       = 1883;
+const char* mqtt_server     = "genmonitor.ddns.net";        // your broker IP
+const int   mqtt_port       = 8000;
 const char* mqtt_username   = "akbar";
 const char* mqtt_password   = "akbar2026";
 const char* mqtt_client_id  = "wemos-genset";        // make this unique per device

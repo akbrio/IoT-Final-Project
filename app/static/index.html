@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GENSET · Sensor Telemetry</title>
+  <title>Generator Monitor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
@@ -19,8 +19,8 @@
     <div class="brand">
       <span class="logo-mark"></span>
       <div class="brand-text">
-        <h1>GENSET TELEMETRY</h1>
-        <p>Generator sensor monitoring · INA219 + MPU6050 · Wemos D1 mini</p>
+        <h1>GENERATOR MONITOR</h1>
+        <p>Live sensor telemetry · INA219 + MPU6050 · Wemos D1 mini</p>
       </div>
     </div>
 
@@ -40,7 +40,6 @@
   </header>
 
   <main id="grid" class="grid">
-    <!-- sensor panels injected by app.js -->
     <div class="loading">Initialising telemetry…</div>
   </main>
 
@@ -49,7 +48,6 @@
     <span id="last-update">no data yet</span>
   </footer>
 
-  <!-- Charting library (loaded from CDN at runtime) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="/static/app.js"></script>
 </body>
